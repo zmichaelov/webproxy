@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
     args[0] = connfd; args[1] = serverPort;
 
     /* spawn a thread to process the new connection */
-
+    fprintf(stdout, "%s\n", "Connection Accepted!");
     Pthread_create(&tid, NULL, webTalk, (void*) args);
     Pthread_detach(tid);
   }
@@ -138,10 +138,18 @@ void parseAddress(char* url, char** host, char** file, int* serverPort)
 	}
 	*serverPort = atoi(strtok(NULL, ":/"));
 }
-
+// HTTPS
 void secureTalk(int clientfd, rio_t client, char* host, char* version, int serverPort) {
 
 
+}
+// HTTP
+void httpTalk(int clientfd, rio_t client, char* host, char* version, int serverPort) {
+    // open connection
+    //
+    // get document
+    //
+    // write to clientfd
 }
 /* WebTalk()
  *
@@ -158,7 +166,7 @@ void *webTalk(void* args)
 	int numBytes, lineNum, serverfd, clientfd, serverPort;
 	int tries;
 	int byteCount = 0;
-	char buf1[MAXLINE], buf2[MAXLINE], buf3[MAXLINE];
+	char buf1[MAXLINE], buf2[MAXLINE], buf3[MAXLINE], request[MAXLINE], response[MAXLINE];
 	char url[MAXLINE], logString[MAXLINE];
 	char *token, *cmd, *version, *host, *file;
 	rio_t server, client;
@@ -172,8 +180,9 @@ void *webTalk(void* args)
 
 	/* Determine whether request is GET or CONNECT */
 	numBytes = Rio_readlineb(&client, buf1, MAXLINE);
-
+    strcat(request, buf1); // copy first line read into buf2 because buf1 will be modified
 	cmd = strtok(buf1, " \r\n");
+    fprintf(stdout, "COMMAND: %s\n", cmd);
 	strcpy(url, strtok(NULL, " \r\n"));
 
 
@@ -185,17 +194,53 @@ void *webTalk(void* args)
 
 	if(!strcmp(cmd, "CONNECT")) {
 		secureTalk(clientfd, client, host, version, serverPort);
-		return; }
+		return NULL;
+    }
+    else if (!strcmp(cmd, "POST")) {
+        return NULL;
+    }
 	else if(strcmp(cmd, "GET")) {
 		if (debug) printf("%s",cmd);
 		app_error("Not GET or CONNECT");
+        return NULL;
 	}
 
+    //int n = Rio_readlineb(&client, buf2, MAXLINE);
+    //strcat(request, buf2);
+    //strcat(request, "\r\n");
+    // read HTTP request from browser
+    while (strcmp(buf2, "\r\n")) {//n > 0){// read from web browser
+        Rio_readlineb(&client, buf2, MAXLINE);
+        // filter out proxy keep-alives
+        if(strstr(buf2, "Proxy-Connection: keep-alive") == NULL) {
+            strcat(request, buf2);
+        }
+        //fprintf(stdout, "Request so far: %s\n", request);
+        //fprintf(stdout, "Current buf2: %s\n", buf2);
+//        fprintf(stdout, "n: %d\n", n);
+//        if (n == 0) {
+//            strcat(request, "\r\n");
+//            break;
+//        }
+    }
 
-	/* you should insert your code for processing connections here */
-    // process connections here
+    strcat(request, buf2);// append the final \r\n
+    fprintf(stdout, "Final Request: \n%s\n", request);
+    // create a new socket to talk to web server
+    serverfd = Open_clientfd(host, serverPort);
+    fprintf(stdout, "ServerFD: %d\n", serverfd);
+	Rio_readinitb(&server, serverfd);
+    Rio_writen(serverfd, request, strlen(request));// write HTTP request to server
+    // wait for response from server and forward it back to the client
+    int n;
+    while((n = Rio_readnb(&server, buf2, MAXLINE)) > 0){
+        Rio_writen(clientfd, buf2, n);// forward response to client
+        //strcat(response, buf2);
+        fprintf(stdout, "Response so far: %s\n", buf2);
+    }
 
-        /* code below writes a log entry at the end of processing the connection */
+    fprintf(stdout, "Finished for : %d\n", serverfd);
+    /* code below writes a log entry at the end of processing the connection */
 
 	pthread_mutex_lock(&mutex);
 
@@ -212,6 +257,7 @@ void *webTalk(void* args)
 
 	Close(clientfd);
 	Close(serverfd);
+    return NULL;
 }
 
 
