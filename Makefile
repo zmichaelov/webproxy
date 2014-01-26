@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -O2 
 LDFLAGS = -pthread
-
+DEBUGFLAG = -ggdb
 OBJS = proxy.o csapp.o
 #display.o
 
@@ -9,6 +9,7 @@ TEAM = NOBODY
 VERSION = 1
 
 all: proxy
+all: CFLAGS += $(DEBUGFLAG)
 
 csapp.o: csapp.c
 	$(CC) $(CFLAGS) -c csapp.c
