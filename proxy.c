@@ -31,7 +31,6 @@ int proxyPort;
 int debugfd;
 int logfd;
 pthread_mutex_t mutex;
-
 /* main function for the proxy program */
 
 int main(int argc, char *argv[])
@@ -51,7 +50,6 @@ int main(int argc, char *argv[])
   }
 
   proxyPort = atoi(argv[1]);
-
   /* turn on debugging if user enters a 1 for the debug argument */
 
   if(argc > 2)
@@ -104,7 +102,6 @@ int main(int argc, char *argv[])
     args[0] = connfd; args[1] = serverPort;
 
     /* spawn a thread to process the new connection */
-    fprintf(stdout, "%s\n", "Connection Accepted!");
     Pthread_create(&tid, NULL, webTalk, (void*) args);
     Pthread_detach(tid);
   }
@@ -166,7 +163,7 @@ void *webTalk(void* args)
 	int numBytes, lineNum, serverfd, clientfd, serverPort;
 	int tries;
 	int byteCount = 0;
-	char buf1[MAXLINE], buf2[MAXLINE], buf3[MAXLINE], request[MAXLINE], response[MAXLINE];
+	char buf1[MAXLINE], buf2[MAXLINE], buf3[MAXLINE], request[MAXLINE], response[10*MAXLINE];
 	char url[MAXLINE], logString[MAXLINE];
 	char *token, *cmd, *version, *host, *file;
 	rio_t server, client;
@@ -182,11 +179,18 @@ void *webTalk(void* args)
 	numBytes = Rio_readlineb(&client, buf1, MAXLINE);
     strcat(request, buf1); // copy first line read into buf2 because buf1 will be modified
 	cmd = strtok(buf1, " \r\n");
-    fprintf(stdout, "COMMAND: %s\n", cmd);
+    while(cmd == NULL) {
+        cmd = strtok(buf1, " \r\n");
+    }
+    if( cmd == NULL) {
+        return NULL;
+    }
+    //fprintf(stdout, "COMMAND: %s\n", cmd);
 	strcpy(url, strtok(NULL, " \r\n"));
 
 
 	parseAddress(url, &host, &file, &serverPort); // ) {
+    fprintf(stdout, "%s | %s:%d\n", cmd, host, serverPort);
 	if(!file) file = slash;
 		if(debug)
 		{	sprintf(buf3, "%s %s %i\n", host, file, serverPort);
@@ -205,41 +209,45 @@ void *webTalk(void* args)
         return NULL;
 	}
 
-    //int n = Rio_readlineb(&client, buf2, MAXLINE);
-    //strcat(request, buf2);
-    //strcat(request, "\r\n");
+    int n = Rio_readlineb(&client, buf2, MAXLINE);
+    strcat(request, buf2);
     // read HTTP request from browser
-    while (strcmp(buf2, "\r\n")) {//n > 0){// read from web browser
-        Rio_readlineb(&client, buf2, MAXLINE);
+    while (strcmp(buf2, "\r\n") && (n > 0)) {//n > 0){// read from web browser
+        n = Rio_readlineb(&client, buf2, MAXLINE);
         // filter out proxy keep-alives
         if(strstr(buf2, "Proxy-Connection: keep-alive") == NULL) {
             strcat(request, buf2);
         }
         //fprintf(stdout, "Request so far: %s\n", request);
-        //fprintf(stdout, "Current buf2: %s\n", buf2);
-//        fprintf(stdout, "n: %d\n", n);
-//        if (n == 0) {
-//            strcat(request, "\r\n");
-//            break;
-//        }
+        //fprintf(stdout, "Currently reading: %s\n", buf2);
+        fprintf(stdout, "n: %d\n", n);
     }
+    fprintf(stdout, "n: %d\n", n);
+    strcat(request, "\r\n");// append the final \r\n
+    fprintf(stdout, "Finished reading from client %d\n", clientfd);
+    //fprintf(stdout, "Final Request: \n%s\n", request);
+    // create a new socket to talk to web serve
 
-    strcat(request, buf2);// append the final \r\n
-    fprintf(stdout, "Final Request: \n%s\n", request);
-    // create a new socket to talk to web server
-    serverfd = Open_clientfd(host, serverPort);
-    fprintf(stdout, "ServerFD: %d\n", serverfd);
+    serverfd = open_clientfd(host, serverPort);
+    if(serverfd < 0) { // failed to establish connection on port serverport
+        return NULL;
+    }
+    //fprintf(stdout, "ServerFD: %d\n", serverfd);
 	Rio_readinitb(&server, serverfd);
     Rio_writen(serverfd, request, strlen(request));// write HTTP request to server
     // wait for response from server and forward it back to the client
-    int n;
-    while((n = Rio_readnb(&server, buf2, MAXLINE)) > 0){
-        Rio_writen(clientfd, buf2, n);// forward response to client
-        //strcat(response, buf2);
-        fprintf(stdout, "Response so far: %s\n", buf2);
+    fprintf(stdout, "Waiting for response from: %d\n", serverfd);
+    n = Rio_readnb(&server, response, 1024*10);
+    Rio_writen(clientfd, response, n);// forward response to client
+    while (n > 0) {
+        n = Rio_readnb(&server, response, 1024*10);
+        Rio_writen(clientfd, response, n);// forward response to client
+        //fprintf(stdout, "Response so far: %s\n", response);
+        //fprintf(stdout, "n: %d\n", n);
     }
 
-    fprintf(stdout, "Finished for : %d\n", serverfd);
+    fprintf(stdout, "Finished response from: %d\n", serverfd);
+    //fprintf(stdout, "Finished for : %d\n", serverfd);
     /* code below writes a log entry at the end of processing the connection */
 
 	pthread_mutex_lock(&mutex);
