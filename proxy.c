@@ -218,18 +218,13 @@ void *webTalk(void* args)
         // filter out proxy keep-alives
         if(strstr(buf2, "Connection:" ) == NULL) {
             strcat(request, buf2);
-        }
-        if(strcmp(buf2, "\r\n")) {
+        }else {
             strcat(request, "Connection: close\r\n");// append the final \r\n
         }
-        //fprintf(stdout, "Request so far: %s\n", request);
-        //fprintf(stdout, "Currently reading: %s\n", buf2);
-        //fprintf(stdout, "n: %d\n", n);
     }
-    //fprintf(stdout, "n: %d\n", n);
-    strcat(request, "\r\n\r\n");// append the final \r\n
-    fprintf(stdout, "Finished reading from client %d\n", clientfd);
-    fprintf(stdout, "Final Request: \n%s\n", request);
+    strcat(request, "\r\n");// append the final \r\n
+    //fprintf(stdout, "Finished reading from client %d\n", clientfd);
+    //fprintf(stdout, "Final Request: \n%s\n", request);
     // create a new socket to talk to web serve
 
     serverfd = open_clientfd(host, serverPort);
