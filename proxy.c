@@ -190,6 +190,9 @@ void *webTalk(void* args)
 
 
 	parseAddress(url, &host, &file, &serverPort); // ) {
+    if (serverPort == 0) {
+        serverPort = 80;
+    }
     fprintf(stdout, "%s | %s:%d\n", cmd, host, serverPort);
 	if(!file) file = slash;
 		if(debug)
