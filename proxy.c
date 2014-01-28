@@ -177,23 +177,21 @@ void *webTalk(void* args)
 
 	/* Determine whether request is GET or CONNECT */
 	numBytes = Rio_readlineb(&client, buf1, MAXLINE);
-    strcat(request, buf1); // copy first line read into buf2 because buf1 will be modified
+    strcpy(request, buf1); // copy first line read into buf2 because buf1 will be modified
+
 	cmd = strtok(buf1, " \r\n");
-    while(cmd == NULL) {
-        cmd = strtok(buf1, " \r\n");
-    }
-    if( cmd == NULL) {
+    if( cmd == NULL || cmd == '\0') {
         return NULL;
     }
-    //fprintf(stdout, "COMMAND: %s\n", cmd);
 	strcpy(url, strtok(NULL, " \r\n"));
 
 
-	parseAddress(url, &host, &file, &serverPort); // ) {
-    if (serverPort == 0) {
+	parseAddress(url, &host, &file, &serverPort);
+    if (serverPort == 0) { // HACK
         serverPort = 80;
     }
-    fprintf(stdout, "%s | %s:%d\n", cmd, host, serverPort);
+
+//    fprintf(stdout, "%s | %s:%d\n", cmd, host, serverPort);
 	if(!file) file = slash;
 		if(debug)
 		{	sprintf(buf3, "%s %s %i\n", host, file, serverPort);
