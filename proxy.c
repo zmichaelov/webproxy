@@ -155,7 +155,7 @@ void *secureTalk(void * args) {
     return NULL;
 }
 // HTTP
-void httpTalk(int clientfd, rio_t client, char* host, char* version, int serverPort) {
+void httpTalk(void * args) {
     // open connection
     //
     // get document
@@ -253,8 +253,6 @@ void *webTalk(void* args)
     // read HTTP request from browser
     int n;
     while (strcmp(buf2, "\r\n") && ((n = rio_readlineb(&client, buf2, MAXLINE) > 0))) {
-        //n = Rio_readlineb(&client, buf2, MAXLINE);
-        // filter out proxy keep-alives
         if(strstr(buf2, "Connection:" ) == NULL) {
             strcat(request, buf2);
         }else {
@@ -262,31 +260,19 @@ void *webTalk(void* args)
         }
     }
     strcat(request, "\r\n");// append the final \r\n
-    //fprintf(stdout, "Finished reading from client %d\n", clientfd);
-    //fprintf(stdout, "Final Request: \n%s\n", request);
     shutdown(clientfd, 0); // no further reads from client
+
     serverfd = open_clientfd(host, serverPort);
-    if(serverfd < 0) { // failed to establish connection on port serverport
+    if(serverfd <= 0) { // failed to establish connection on port serverport
         return NULL;
     }
-    //fprintf(stdout, "ServerFD: %d\n", serverfd);
 	Rio_readinitb(&server, serverfd);
     Rio_writen(serverfd, request, strlen(request));// write HTTP request to server
-    //shutdown(serverfd, 1);
-    // wait for response from server and forward it back to the client
-    //fprintf(stdout, "Waiting for response from: %d\n", serverfd);
-    //n = Rio_readnb(&server, response, 1024*10);
-    //n = Rio_readlineb(&server, response, MAXLINE);
-    //Rio_writen(clientfd, response, n);// forward response to client
+
     while ((n = rio_readlineb(&server, response, MAXLINE)) > 0) {
-    //    n = Rio_readnb(&server, response, 1024*10);
-        //n = Rio_readlineb(&server,response, MAXLINE);
         rio_writen(clientfd, response, n);// forward response to client
-        //fprintf(stdout, "Response so far: %s\r", response);
-        //fprintf(stdout, "n: %d\n", n);
     }
 
-    //fprintf(stdout, "Finished response from: %d\n", serverfd);
     shutdown(clientfd, 1);// no further sends to client
     /* code below writes a log entry at the end of processing the connection */
 
