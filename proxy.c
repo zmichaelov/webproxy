@@ -31,6 +31,7 @@ int proxyPort;
 int debugfd;
 int logfd;
 pthread_mutex_t mutex;
+static char* ok = "HTTP/1.1 200 OK\r\n\r\n";
 /* main function for the proxy program */
 
 int main(int argc, char *argv[])
@@ -137,7 +138,7 @@ void parseAddress(char* url, char** host, char** file, int* serverPort)
 	}
 	*serverPort = atoi(strtok(NULL, ":/"));
 }
-// HTTPS
+
 void *secureTalk(void* args) {
 	int n;
 	char buf[MAXLINE];
@@ -223,7 +224,6 @@ void *webTalk(void* args)
             return NULL;
         }
         // write HTTP request to server
-        char* ok = "HTTP/1.1 200 OK\r\n\r\n";
         int n = rio_writep(clientfd, ok, strlen(ok));// if we successfully connect to server, send OK to client
         if (n < 0) {
             return NULL;
@@ -231,8 +231,6 @@ void *webTalk(void* args)
 
         // reading from client forwarding to server
         arg_struct* args1 = malloc(sizeof(arg_struct));
-        //args1[0] = clientfd;
-        //args1[1] = serverfd;
         args1->read_from = clientfd;
         args1->fwd_to = serverfd;
         pthread_t client_to_server;
@@ -240,8 +238,6 @@ void *webTalk(void* args)
         Pthread_detach(client_to_server);
 
         // reading from server forward to client
-        //args2[0] = serverfd;
-        //args2[1] = clientfd;
         arg_struct* args2 = malloc(sizeof(arg_struct));
         args2->read_from = serverfd;
         args2->fwd_to = clientfd;
