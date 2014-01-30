@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
     clientlen = sizeof(clientaddr);
 
     connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
-    if (connfd <= 0) {
+    if (connfd <= 2) {
         continue;
     }
     hp = Gethostbyaddr((const char *)&clientaddr.sin_addr.s_addr,
@@ -139,13 +139,15 @@ void parseAddress(char* url, char** host, char** file, int* serverPort)
 }
 // HTTPS
 void *secureTalk(void * args) {
-	int read_from_fd, fwd_to_fd, n;
+	int n;
 	char buf[MAXLINE];
-	read_from_fd = ((int*)args)[0];
-	fwd_to_fd = ((int*)args)[1];
+	int read_from_fd = ((int*)args)[0];
+	int fwd_to_fd = ((int*)args)[1];
 
     while((n = rio_readp(read_from_fd, buf, MAXLINE))> 0) {
-        rio_writep(fwd_to_fd, buf, n);
+        if((rio_writep(fwd_to_fd, buf, n)) < 0) {
+            break;
+        }
     }
 
     //fprintf(stdout, "Done reading from %d\n", read_from_fd );
@@ -215,7 +217,7 @@ void *webTalk(void* args)
 	if(!strcmp(cmd, "CONNECT")) {
         // spawn threads to cl
         serverfd = open_clientfd(host, serverPort);
-        if(serverfd <= 0) {
+        if(serverfd <= 2) {
             return NULL;
         }
         // write HTTP request to server
@@ -263,14 +265,16 @@ void *webTalk(void* args)
     shutdown(clientfd, 0); // no further reads from client
 
     serverfd = open_clientfd(host, serverPort);
-    if(serverfd <= 0) { // failed to establish connection on port serverport
+    if(serverfd <= 2) { // failed to establish connection on port serverport
         return NULL;
     }
 	Rio_readinitb(&server, serverfd);
     Rio_writen(serverfd, request, strlen(request));// write HTTP request to server
 
     while ((n = rio_readlineb(&server, response, MAXLINE)) > 0) {
-        rio_writen(clientfd, response, n);// forward response to client
+        if((rio_writen(clientfd, response, n)) < 0) {
+            break;
+        }
     }
 
     shutdown(clientfd, 1);// no further sends to client
