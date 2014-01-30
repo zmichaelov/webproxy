@@ -136,9 +136,26 @@ void parseAddress(char* url, char** host, char** file, int* serverPort)
 	*serverPort = atoi(strtok(NULL, ":/"));
 }
 // HTTPS
-void secureTalk(int clientfd, rio_t client, char* host, char* version, int serverPort) {
+void *secureTalk(void * args) {
+	int read_from_fd, fwd_to_fd;
+	char buf[MAXLINE];
+	read_from_fd = ((int*)args)[0];
+	fwd_to_fd = ((int*)args)[1];
 
+    int n = Rio_readp(read_from_fd, buf, MAXLINE);
+    Rio_writep(fwd_to_fd, buf, n);
+    fprintf(stdout, "n: %d\n", n);
+    while(n > 0) {
+        fprintf(stdout, "Reading from %d: %s\n", read_from_fd, buf);
+        n = Rio_readp(read_from_fd, buf, MAXLINE);
+        Rio_writep(fwd_to_fd, buf, n);
+    }
 
+    fprintf(stdout, "Done reading from %d\n", read_from_fd );
+    fprintf(stdout, "Done writing to %d\n", fwd_to_fd);
+    shutdown(read_from_fd, 0); // no more reads
+    shutdown(fwd_to_fd, 1); // no more writes
+    return NULL;
 }
 // HTTP
 void httpTalk(int clientfd, rio_t client, char* host, char* version, int serverPort) {
@@ -153,8 +170,6 @@ void httpTalk(int clientfd, rio_t client, char* host, char* version, int serverP
  * Once a connection has been established, webTalk handles
  * the communication.
  */
-
-
 /* this function is not complete */
 /* you'll do the bulk of your work here */
 
@@ -163,7 +178,7 @@ void *webTalk(void* args)
 	int numBytes, lineNum, serverfd, clientfd, serverPort;
 	int tries;
 	int byteCount = 0;
-	char buf1[MAXLINE], buf2[MAXLINE], buf3[MAXLINE], request[MAXLINE], response[10*MAXLINE];
+	char buf1[MAXLINE], buf2[MAXLINE], buf3[MAXLINE], request[MAXLINE], response[MAXLINE];
 	char url[MAXLINE], logString[MAXLINE];
 	char *token, *cmd, *version, *host, *file;
 	rio_t server, client;
@@ -201,7 +216,29 @@ void *webTalk(void* args)
     }
 
 	if(!strcmp(cmd, "CONNECT")) {
-		secureTalk(clientfd, client, host, version, serverPort);
+        // spawn threads to cl
+        serverfd = open_clientfd(host, serverPort);
+        if(serverfd < 0) {
+            return NULL;
+        }
+        // write HTTP request to server
+        char* ok = "HTTP/1.1 200 OK\r\n\r\n";
+        Rio_writep(clientfd, ok, strlen(ok));// if we successfully connect to server, send OK to client
+        fprintf(stdout, "OK Status sent\n");
+
+        // reading from client forwarding to server
+        int args1[2] = {clientfd, serverfd};
+        pthread_t client_to_server;
+        Pthread_create(&client_to_server, NULL, secureTalk, args1);
+        //Pthread_detach(client_to_server);
+
+        // reading from server forward to client
+        int args2[2] = {serverfd, clientfd};
+        pthread_t server_to_client;
+        Pthread_create(&server_to_client, NULL, secureTalk, args2);
+        //Pthread_detach(server_to_client);
+        Pthread_join(client_to_server, NULL);
+        Pthread_join(server_to_client, NULL);
 		return NULL;
     } else if (!strcmp(cmd, "POST")) {
         return NULL;
