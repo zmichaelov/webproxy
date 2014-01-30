@@ -271,11 +271,9 @@ void *webTalk(void* args)
     if(serverfd <= 2) { // failed to establish connection on port serverport
         return NULL;
     }
-	Rio_readinitb(&server, serverfd);
-    Rio_writen(serverfd, request, strlen(request));// write HTTP request to server
-
-    while ((n = rio_readlineb(&server, response, MAXLINE)) > 0) {
-        if((rio_writen(clientfd, response, n)) < 0) {
+    rio_writep(serverfd, request, strlen(request));// write HTTP request to server
+    while ((n = rio_readp(serverfd, response, MAXLINE)) > 0) {
+        if((rio_writep(clientfd, response, n)) < 0) {
             break;
         }
     }
