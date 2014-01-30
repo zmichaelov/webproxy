@@ -808,7 +808,7 @@ void Rio_writep(int fd, void *usrbuf, size_t n)
 {
     if (rio_writep(fd, usrbuf, n) != n) {
         if (errno != EPIPE)
-	   unix_error("Rio_writen error");
+	   unix_error("Rio_writep error");
 	else {
 //	   printf("Rio_writen: socket has closed with EPIPE\n");
         }
