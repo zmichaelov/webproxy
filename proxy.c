@@ -137,22 +137,17 @@ void parseAddress(char* url, char** host, char** file, int* serverPort)
 }
 // HTTPS
 void *secureTalk(void * args) {
-	int read_from_fd, fwd_to_fd;
+	int read_from_fd, fwd_to_fd, n;
 	char buf[MAXLINE];
 	read_from_fd = ((int*)args)[0];
 	fwd_to_fd = ((int*)args)[1];
 
-    int n = Rio_readp(read_from_fd, buf, MAXLINE);
-    Rio_writep(fwd_to_fd, buf, n);
-    fprintf(stdout, "n: %d\n", n);
-    while(n > 0) {
-        fprintf(stdout, "Reading from %d: %s\n", read_from_fd, buf);
-        n = Rio_readp(read_from_fd, buf, MAXLINE);
+    while((n = Rio_readp(read_from_fd, buf, MAXLINE))> 0) {
         Rio_writep(fwd_to_fd, buf, n);
     }
 
-    fprintf(stdout, "Done reading from %d\n", read_from_fd );
-    fprintf(stdout, "Done writing to %d\n", fwd_to_fd);
+    //fprintf(stdout, "Done reading from %d\n", read_from_fd );
+    //fprintf(stdout, "Done writing to %d\n", fwd_to_fd);
     shutdown(read_from_fd, 0); // no more reads
     shutdown(fwd_to_fd, 1); // no more writes
     return NULL;
