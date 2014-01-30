@@ -250,7 +250,6 @@ void *webTalk(void* args)
         return NULL;
     } else if(strcmp(cmd, "GET")) {
 		if (debug) printf("%s",cmd);
-		app_error("Not GET or CONNECT");
         return NULL;
 	}
 
