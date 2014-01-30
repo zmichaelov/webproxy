@@ -138,11 +138,12 @@ void parseAddress(char* url, char** host, char** file, int* serverPort)
 	*serverPort = atoi(strtok(NULL, ":/"));
 }
 // HTTPS
-void *secureTalk(void * args) {
+void *secureTalk(void* args) {
 	int n;
 	char buf[MAXLINE];
-	int read_from_fd = ((int*)args)[0];
-	int fwd_to_fd = ((int*)args)[1];
+    arg_struct* fds = (arg_struct *) args;
+	int read_from_fd = fds->read_from;
+	int fwd_to_fd = fds->fwd_to;
 
     while((n = rio_readp(read_from_fd, buf, MAXLINE))> 0) {
         if((rio_writep(fwd_to_fd, buf, n)) < 0) {
@@ -154,6 +155,7 @@ void *secureTalk(void * args) {
     //fprintf(stdout, "Done writing to %d\n", fwd_to_fd);
     shutdown(read_from_fd, 0); // no more reads
     shutdown(fwd_to_fd, 1); // no more writes
+    free(fds);
     return NULL;
 }
 // HTTP
@@ -228,19 +230,25 @@ void *webTalk(void* args)
         }
 
         // reading from client forwarding to server
-        int args1[2] = {clientfd, serverfd};
+        arg_struct* args1 = malloc(sizeof(arg_struct));
+        //args1[0] = clientfd;
+        //args1[1] = serverfd;
+        args1->read_from = clientfd;
+        args1->fwd_to = serverfd;
         pthread_t client_to_server;
-        Pthread_create(&client_to_server, NULL, secureTalk, args1);
+        Pthread_create(&client_to_server, NULL, secureTalk, (void *)args1);
         Pthread_detach(client_to_server);
 
         // reading from server forward to client
-        int args2[2] = {serverfd, clientfd};
+        //args2[0] = serverfd;
+        //args2[1] = clientfd;
+        arg_struct* args2 = malloc(sizeof(arg_struct));
+        args2->read_from = serverfd;
+        args2->fwd_to = clientfd;
         pthread_t server_to_client;
-        Pthread_create(&server_to_client, NULL, secureTalk, args2);
+        Pthread_create(&server_to_client, NULL, secureTalk,(void *)args2);
         Pthread_detach(server_to_client);
 
-        //Pthread_join(client_to_server, NULL);
-        //Pthread_join(server_to_client, NULL);
 		return NULL;
     } else if (!strcmp(cmd, "POST")) {
         return NULL;

@@ -6,5 +6,8 @@ typedef struct {
   char *name2, *email2;
   char *tname;
 } team_struct;
-
+typedef struct {
+    int read_from;
+    int fwd_to;
+} arg_struct;
 #endif
