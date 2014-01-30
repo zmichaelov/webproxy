@@ -93,7 +93,9 @@ int main(int argc, char *argv[])
     clientlen = sizeof(clientaddr);
 
     connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
-
+    if (connfd <= 0) {
+        continue;
+    }
     hp = Gethostbyaddr((const char *)&clientaddr.sin_addr.s_addr,
 		       sizeof(clientaddr.sin_addr.s_addr), AF_INET);
 
@@ -142,8 +144,8 @@ void *secureTalk(void * args) {
 	read_from_fd = ((int*)args)[0];
 	fwd_to_fd = ((int*)args)[1];
 
-    while((n = Rio_readp(read_from_fd, buf, MAXLINE))> 0) {
-        Rio_writep(fwd_to_fd, buf, n);
+    while((n = rio_readp(read_from_fd, buf, MAXLINE))> 0) {
+        rio_writep(fwd_to_fd, buf, n);
     }
 
     //fprintf(stdout, "Done reading from %d\n", read_from_fd );
@@ -213,27 +215,30 @@ void *webTalk(void* args)
 	if(!strcmp(cmd, "CONNECT")) {
         // spawn threads to cl
         serverfd = open_clientfd(host, serverPort);
-        if(serverfd < 0) {
+        if(serverfd <= 0) {
             return NULL;
         }
         // write HTTP request to server
         char* ok = "HTTP/1.1 200 OK\r\n\r\n";
-        Rio_writep(clientfd, ok, strlen(ok));// if we successfully connect to server, send OK to client
-        fprintf(stdout, "OK Status sent\n");
+        int n = rio_writep(clientfd, ok, strlen(ok));// if we successfully connect to server, send OK to client
+        if (n < 0) {
+            return NULL;
+        }
 
         // reading from client forwarding to server
         int args1[2] = {clientfd, serverfd};
         pthread_t client_to_server;
         Pthread_create(&client_to_server, NULL, secureTalk, args1);
-        //Pthread_detach(client_to_server);
+        Pthread_detach(client_to_server);
 
         // reading from server forward to client
         int args2[2] = {serverfd, clientfd};
         pthread_t server_to_client;
         Pthread_create(&server_to_client, NULL, secureTalk, args2);
-        //Pthread_detach(server_to_client);
-        Pthread_join(client_to_server, NULL);
-        Pthread_join(server_to_client, NULL);
+        Pthread_detach(server_to_client);
+
+        //Pthread_join(client_to_server, NULL);
+        //Pthread_join(server_to_client, NULL);
 		return NULL;
     } else if (!strcmp(cmd, "POST")) {
         return NULL;
@@ -243,11 +248,12 @@ void *webTalk(void* args)
         return NULL;
 	}
 
-    int n = Rio_readlineb(&client, buf2, MAXLINE);
-    strcat(request, buf2);
+    //int n = Rio_readlineb(&client, buf2, MAXLINE);
+    //strcat(request, buf2);
     // read HTTP request from browser
-    while (strcmp(buf2, "\r\n") && (n > 0)) {
-        n = Rio_readlineb(&client, buf2, MAXLINE);
+    int n;
+    while (strcmp(buf2, "\r\n") && ((n = rio_readlineb(&client, buf2, MAXLINE) > 0))) {
+        //n = Rio_readlineb(&client, buf2, MAXLINE);
         // filter out proxy keep-alives
         if(strstr(buf2, "Connection:" ) == NULL) {
             strcat(request, buf2);
@@ -270,12 +276,12 @@ void *webTalk(void* args)
     // wait for response from server and forward it back to the client
     //fprintf(stdout, "Waiting for response from: %d\n", serverfd);
     //n = Rio_readnb(&server, response, 1024*10);
-    n = Rio_readlineb(&server, response, MAXLINE);
-    Rio_writen(clientfd, response, n);// forward response to client
-    while (n > 0) {
+    //n = Rio_readlineb(&server, response, MAXLINE);
+    //Rio_writen(clientfd, response, n);// forward response to client
+    while ((n = rio_readlineb(&server, response, MAXLINE)) > 0) {
     //    n = Rio_readnb(&server, response, 1024*10);
-        n = Rio_readlineb(&server,response, MAXLINE);
-        Rio_writen(clientfd, response, n);// forward response to client
+        //n = Rio_readlineb(&server,response, MAXLINE);
+        rio_writen(clientfd, response, n);// forward response to client
         //fprintf(stdout, "Response so far: %s\r", response);
         //fprintf(stdout, "n: %d\n", n);
     }
