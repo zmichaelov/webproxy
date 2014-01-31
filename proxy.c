@@ -247,14 +247,41 @@ void *webTalk(void* args)
 
 		return NULL;
     } else if (!strcmp(cmd, "POST")) {
+        // processing post is similar to processing GET
+
+        int n;
+        while ((n = rio_readlineb(&client, buf2, MAXLINE)) > 0) {
+            if(strstr(buf2, "Connection:" ) == NULL) {
+                strcat(request, buf2);
+            }else {
+                strcat(request, "Connection: close\r\n");
+            }
+        }
+        strcat(request, "\r\n\r\n");// append the final \r\n
+        shutdown(clientfd, 0); // no further reads from client
+        // read response from the server
+        serverfd = open_clientfd(host, serverPort);
+        fprintf(stdout, "POST Request: %d\n%s\n", serverfd, request);
+        if(serverfd <= 2) { // failed to establish connection on port serverport
+            fprintf(stdout, "POST failed to connect:%d\n", serverfd);
+            return NULL;
+        }
+        rio_writep(serverfd, request, strlen(request));// write HTTP request to server
+        while ((n = rio_readp(serverfd, response, MAXLINE)) > 0) {
+            fprintf(stdout, "POST Response:\n%s\n", response);
+            if((rio_writep(clientfd, response, n)) < 0) {
+                break;
+            }
+        }
+
+        fprintf(stdout, "Finished POST:%d\n", serverfd);
+        shutdown(clientfd, 1);// no further sends to client
         return NULL;
     } else if(strcmp(cmd, "GET")) {
 		if (debug) printf("%s",cmd);
         return NULL;
 	}
 
-    //int n = Rio_readlineb(&client, buf2, MAXLINE);
-    //strcat(request, buf2);
     // read HTTP request from browser
     int n;
     while (strcmp(buf2, "\r\n") && ((n = rio_readlineb(&client, buf2, MAXLINE) > 0))) {
