@@ -43,7 +43,6 @@ int main(int argc, char *argv[])
   char *haddrp;
   sigset_t sig_pipe;
   pthread_t tid;
-  int args[2];
 
   if (argc < 2) {
     printf("Usage: ./%s port [debug] [serverport]\n", argv[0]);
@@ -102,7 +101,9 @@ int main(int argc, char *argv[])
 
     haddrp = inet_ntoa(clientaddr.sin_addr);
 
-    args[0] = connfd; args[1] = serverPort;
+    int* args = malloc(sizeof(int)*2);
+    args[0] = connfd;
+    args[1] = serverPort;
 
     /* spawn a thread to process the new connection */
     Pthread_create(&tid, NULL, webTalk, (void*) args);
@@ -189,7 +190,7 @@ void *webTalk(void* args)
 
 	clientfd = ((int*)args)[0];
 	serverPort = ((int*)args)[1];
-
+    free(args);
 	Rio_readinitb(&client, clientfd);
 
 	/* Determine whether request is GET or CONNECT */
