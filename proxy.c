@@ -120,19 +120,18 @@ int main(int argc, char *argv[])
 
 }
 
-void parseAddress(char* url, char** host, char** file, int* serverPort)
+void parseAddress(char* url, char* host, char** file, int* serverPort)
 {
-	char buf[MAXLINE];
 	char* point1, *point2;
 
 	if(strstr(url, "http://"))
 		url = &(url[7]);
 	*file = strchr(url, '/');
 
-	strcpy(buf, url);
+	strcpy(host, url);
 	point1 = strchr(url, ':');
     char* saveptr;
-	*host = strtok_r(buf, ":/", &saveptr);
+	strtok_r(host, ":/", &saveptr);
 
 	if(!point1) {
 		*serverPort = 80;
@@ -183,8 +182,8 @@ void *webTalk(void* args)
 	int tries;
 	int byteCount = 0;
 	char buf1[MAXLINE], buf2[MAXLINE], buf3[MAXLINE], request[MAXLINE], response[MAXLINE];
-	char url[MAXLINE], logString[MAXLINE];
-	char *token, *cmd, *version, *host, *file;
+	char url[MAXLINE], logString[MAXLINE], host[MAXLINE];
+	char *token, *cmd, *version, *file;
 	rio_t server, client;
 	char slash[10];
 	strcpy(slash, "/");
@@ -205,7 +204,7 @@ void *webTalk(void* args)
 	strcpy(url, strtok_r(NULL, " \r\n", &saveptr));
 
 
-	parseAddress(url, &host, &file, &serverPort);
+	parseAddress(url, host, &file, &serverPort);
     if (serverPort == 0) { // HACK
         serverPort = 80;
     }
