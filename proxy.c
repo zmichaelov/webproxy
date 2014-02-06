@@ -413,7 +413,8 @@ void format_log_entry(char * logstring, int sock, char * uri, int size)
     strftime(buffer, MAXLINE, "%a %d %b %Y %H:%M:%S %Z", localtime(&now));
 
     if (getpeername(sock, (struct sockaddr *) & addr, &len)) {
-	unix_error("Can't get peer name");
+        sprintf(logstring, "Can't get peer name\n");
+        return;
     }
 
     host = ntohl(addr.sin_addr.s_addr);
