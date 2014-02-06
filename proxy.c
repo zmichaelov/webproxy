@@ -131,13 +131,14 @@ void parseAddress(char* url, char** host, char** file, int* serverPort)
 
 	strcpy(buf, url);
 	point1 = strchr(url, ':');
-	*host = strtok(buf, ":/");
+    char* saveptr;
+	*host = strtok_r(buf, ":/", &saveptr);
 
 	if(!point1) {
 		*serverPort = 80;
 		return;
 	}
-	*serverPort = atoi(strtok(NULL, ":/"));
+	*serverPort = atoi(strtok_r(NULL, ":/", &saveptr));
 }
 
 void *secureTalk(void* args) {
@@ -196,12 +197,12 @@ void *webTalk(void* args)
 	/* Determine whether request is GET or CONNECT */
 	numBytes = Rio_readlineb(&client, buf1, MAXLINE);
     strcpy(request, buf1); // copy first line read into buf2 because buf1 will be modified
-
-	cmd = strtok(buf1, " \r\n");
+    char *saveptr;
+	cmd = strtok_r(buf1, " \r\n", &saveptr);
     if( cmd == NULL || cmd == '\0') {
         return NULL;
     }
-	strcpy(url, strtok(NULL, " \r\n"));
+	strcpy(url, strtok_r(NULL, " \r\n", &saveptr));
 
 
 	parseAddress(url, &host, &file, &serverPort);
