@@ -39,8 +39,6 @@ int main(int argc, char *argv[])
   int count = 0;
   int listenfd, connfd, clientlen, optval, serverPort, i;
   struct sockaddr_in clientaddr;
-  struct hostent *hp;
-  char *haddrp;
   sigset_t sig_pipe;
   pthread_t tid;
 
@@ -96,10 +94,6 @@ int main(int argc, char *argv[])
     if (connfd <= 2) {
         continue;
     }
-    hp = Gethostbyaddr((const char *)&clientaddr.sin_addr.s_addr,
-		       sizeof(clientaddr.sin_addr.s_addr), AF_INET);
-
-    haddrp = inet_ntoa(clientaddr.sin_addr);
 
     int* args = malloc(sizeof(int)*2);
     args[0] = connfd;
